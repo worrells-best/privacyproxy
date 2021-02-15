@@ -7,11 +7,18 @@ import java.nio.ByteBuffer;
 import javax.net.ssl.*;
 
 public class HttpUtils {
-  static final String SP = " ";
-  static final char METHOD_POS = 0;
-  static final char URI_POS = 1;
-  static final char VERSION_POS = 2;
-  static final int NUM_HEADER_PARTS = 3;
+  // For parsing http request
+  static final String HTTP_SP = " ";
+  static final char HTTP_METHOD_POS = 0;
+  static final char HTTP_URI_POS = 1;
+  static final char HTTP_VERSION_POS = 2;
+  static final int HTTP_NUM_HEADER_PARTS = 3;
+  // for parsing URIs
+  static final String URI_SP = ":";
+  static final int URI_DOMAIN_POS = 0;
+  static final int URI_PORT_POS = 1;
+  static final int URI_NUM_PARTS = 2;
+
   public static final ByteBuffer RES_CONNECTION_ESTABLISHED =
       ByteBuffer.wrap("HTTP/1.1 200 Connection Established\r\n\r\n".getBytes());
   public static final ByteBuffer RES_FORBIDDEN =
@@ -57,15 +64,42 @@ public class HttpUtils {
     String line;
     try {
       line = in.readLine();
-      String[] firstLineParts = line.split(SP);
-      if (firstLineParts.length < NUM_HEADER_PARTS) {
+      String[] firstLineParts = line.split(HTTP_SP);
+      if (firstLineParts.length < HTTP_NUM_HEADER_PARTS) {
         throw new IOException("invalid request");
       }
       Method method;
-      method = Method.valueOf(firstLineParts[METHOD_POS]);
-      return new HttpRequest(method, firstLineParts[URI_POS], firstLineParts[VERSION_POS]);
+      method = Method.valueOf(firstLineParts[HTTP_METHOD_POS]);
+      return new HttpRequest(
+          method, firstLineParts[HTTP_URI_POS], firstLineParts[HTTP_VERSION_POS]);
     } catch (IllegalArgumentException e) {
       throw new IOException(e);
     }
+  }
+
+  static class Uri {
+    private String domain;
+    private int port;
+
+    public String getDomain() {
+      return this.domain;
+    }
+
+    public int getPort() {
+      return this.port;
+    }
+  }
+
+  public static Uri parseUri(String uri) throws IllegalUriException {
+
+    String[] parts = uri.split(URI_SP);
+    if (parts.length != URI_NUM_PARTS) {
+      throw new IllegalUriException("expected URI format 'host:port' not received");
+    }
+
+    Uri dst = new Uri();
+    dst.domain = parts[URI_DOMAIN_POS];
+    dst.port = Integer.parseInt(parts[URI_PORT_POS]);
+    return dst;
   }
 }

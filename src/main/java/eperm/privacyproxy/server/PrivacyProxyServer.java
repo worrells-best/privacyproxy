@@ -123,8 +123,7 @@ public class PrivacyProxyServer {
       HttpUtils.HttpRequest req = HttpUtils.ParseHttpRequest(buffer);
       switch (req.getMethod()) {
         case CONNECT:
-          ProxyDestination dst;
-          dst = ProxyDestination.parseUri(req.getUri());
+          HttpUtils.Uri dst = HttpUtils.parseUri(req.getUri());
           System.out.printf(
               "received CONNECT request for %s:%d...\n", dst.getDomain(), dst.getPort());
           if (!endpointAllowed(dst.getDomain(), dst.getPort())) {
