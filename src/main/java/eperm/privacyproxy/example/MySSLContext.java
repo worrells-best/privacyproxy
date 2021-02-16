@@ -15,12 +15,12 @@ public class MySSLContext {
      ### enter "127.0.0.1" for "Common Name"
       $ openssl req -x509 -sha256 -days 365 -key key.pem -in csr.csr -out certificate.pem
       $ openssl pkcs12 -export -out server-identity.p12 -inkey key.pem -in certificate.pem
-     ### this is your `keyPass`
+     ### ^ the password entered here is your `keyPass`
 
      ### copy your trust store and add add the above cert to it:
       $ cp $JAVA_HOME/lib/security/cacerts mycerts
       $ keytool -importcert -keystore mycerts -file certificate.pem
-     ### ^ char[] trustPass (default is 'changeit')
+     ### ^ the password entered here is your `trustPass` (the default is "changeit")
 
       String keyStorePath = "./server-identity.p12";
       String trustStorePath = "./mycerts";
