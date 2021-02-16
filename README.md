@@ -31,7 +31,7 @@ This server does not guarantee privacy on its own, and requires a responsible cl
 
 ### TODOs
 - various code cleanup including proper logging & exception handling
-- support multithreaded server
+- support multithreading
 - support proxy authorization
 - offload heavier crypto tasks to worker threads
 - more robust testing to ensure these privacy claims are met
