@@ -42,42 +42,51 @@ public class PrivacyProxyServer {
       serverSocket.bind(new InetSocketAddress("localhost", port));
       serverSocket.configureBlocking(false);
       serverSocket.register(selector, SelectionKey.OP_ACCEPT);
-
-      while (selector.isOpen()) {
-        selector.select();
-        Set<SelectionKey> selectedKeys = selector.selectedKeys();
-        Iterator<SelectionKey> iter = selectedKeys.iterator();
-
-        while (iter.hasNext()) {
-          SelectionKey key = iter.next();
-          try {
-            if (key.isAcceptable()) { // new connection
-              handleNewConnection(key, selector);
-            } else if (key.isReadable()) { // data received from either client or endpoint
-              UniProxyChannel proxyChan = (UniProxyChannel) key.attachment();
-              switch (proxyChan.getChannelState()) {
-                case UNINITIALIZED:
-                  handleInitialization(key, selector);
-                  break;
-                case ACTIVE_CLIENT:
-                case ACTIVE_ENDPOINT:
-                  handleDataStream(key);
-                  break;
-                default:
-                  // TODO: this should never happen
-                  break;
-              }
-            }
-          } catch (NeedsReadException e) {
-            key.interestOps(SelectionKey.OP_READ);
-          }
-
-          iter.remove();
-        }
-      }
-    } catch (Exception e) {
+    } catch (IOException e) {
       e.printStackTrace();
       return;
+    }
+
+    while (selector.isOpen()) {
+      try {
+        selector.select();
+      } catch (IOException e) {
+        e.printStackTrace();
+        continue;
+      }
+
+      Set<SelectionKey> selectedKeys = selector.selectedKeys();
+      Iterator<SelectionKey> iter = selectedKeys.iterator();
+
+      while (iter.hasNext()) {
+        SelectionKey key = iter.next();
+        try {
+          if (key.isAcceptable()) { // new connection
+            handleNewConnection(key, selector);
+          } else if (key.isReadable()) { // data received from either client or endpoint
+            UniProxyChannel proxyChan = (UniProxyChannel) key.attachment();
+            switch (proxyChan.getChannelState()) {
+              case UNINITIALIZED:
+                handleInitialization(key, selector);
+                break;
+              case ACTIVE_CLIENT:
+              case ACTIVE_ENDPOINT:
+                handleDataStream(key);
+                break;
+              default:
+                // TODO: this should never happen
+                break;
+            }
+          }
+        } catch (NeedsReadException e) {
+          key.interestOps(SelectionKey.OP_READ);
+        } catch (IOException e) {
+          // TODO: something went wrong. consider key.cancel()
+          e.printStackTrace();
+        }
+
+        iter.remove();
+      }
     }
   }
 
@@ -119,44 +128,61 @@ public class PrivacyProxyServer {
 
     ByteBuffer buffer = ByteBuffer.allocate(1024);
     clientTls.read(buffer);
-    try {
-      HttpUtils.HttpRequest req = HttpUtils.ParseHttpRequest(buffer);
-      switch (req.getMethod()) {
-        case CONNECT:
-          HttpUtils.Uri dst = HttpUtils.parseUri(req.getUri());
-          System.out.printf(
-              "received CONNECT request for %s:%d...\n", dst.getDomain(), dst.getPort());
-          if (!endpointAllowed(dst.getDomain(), dst.getPort())) {
-            System.out.printf(
-                "rejected CONNECT request for %s:%d...\n", dst.getDomain(), dst.getPort());
+    HttpUtils.HttpRequest req = HttpUtils.ParseHttpRequest(buffer);
+    switch (req.getMethod()) {
+      case CONNECT:
+        try {
+          if (handleConnectRequest(req.getUri(), key, clientTls, selector) == 0) {
+            clientTls.write(HttpUtils.RES_CONNECTION_ESTABLISHED);
+          } else {
             clientTls.write(HttpUtils.RES_FORBIDDEN);
-            return;
           }
-
-          // open connection to requested server
-          SocketChannel endpointSocket = SocketChannel.open();
-          endpointSocket.connect(new InetSocketAddress(dst.getDomain(), dst.getPort()));
-          endpointSocket.configureBlocking(false);
-
-          // register with our selector
-          SelectionKey endpointKey = endpointSocket.register(selector, SelectionKey.OP_READ);
-          UniProxyChannel endpointUpc =
-              new UniProxyChannel(ChannelState.ACTIVE_ENDPOINT, endpointSocket, clientTls);
-          endpointKey.attach(endpointUpc);
-
-          UniProxyChannel clientUpc =
-              new UniProxyChannel(ChannelState.ACTIVE_CLIENT, clientTls, endpointSocket);
-          key.attach(clientUpc);
-
-          clientTls.write(HttpUtils.RES_CONNECTION_ESTABLISHED);
-          System.out.printf("initialized connection to %s:%d\n", dst.getDomain(), dst.getPort());
-          break;
-        default:
+        } catch (ConnectRequestException e) {
+          // TODO: internal error
           clientTls.write(HttpUtils.RES_METHOD_NOT_ALLOWED);
-          throw new IOException("unsupported request");
+          e.printStackTrace();
+        }
+        break;
+      default:
+        clientTls.write(HttpUtils.RES_METHOD_NOT_ALLOWED);
+        System.out.println("received unsupported request");
+    }
+  }
+
+  // returns 0 on success, -1 on forbidden destination
+  private int handleConnectRequest(
+      String uri, SelectionKey key, ByteChannel clientChannel, Selector selector)
+      throws ConnectRequestException {
+    try {
+      HttpUtils.Uri dst = HttpUtils.parseUri(uri);
+      System.out.printf("received CONNECT request for %s:%d...\n", dst.getDomain(), dst.getPort());
+      if (!endpointAllowed(dst.getDomain(), dst.getPort())) {
+        System.out.printf(
+            "rejected CONNECT request for %s:%d...\n", dst.getDomain(), dst.getPort());
+        return -1;
       }
-    } catch (IllegalUriException e) {
-      clientTls.write(HttpUtils.RES_METHOD_NOT_ALLOWED);
+
+      // open connection to requested server
+      SocketChannel endpointChannel = SocketChannel.open();
+      endpointChannel.connect(new InetSocketAddress(dst.getDomain(), dst.getPort()));
+      endpointChannel.configureBlocking(false);
+
+      // register unidirectional proxy (client <== server)
+      SelectionKey endpointKey = endpointChannel.register(selector, SelectionKey.OP_READ);
+      UniProxyChannel endpointUpc =
+          new UniProxyChannel(ChannelState.ACTIVE_ENDPOINT, endpointChannel, clientChannel);
+      endpointKey.attach(endpointUpc);
+
+      // update current channel as unidirectional proxy (client ==> server)
+      UniProxyChannel clientUpc =
+          new UniProxyChannel(ChannelState.ACTIVE_CLIENT, clientChannel, endpointChannel);
+      key.attach(clientUpc);
+
+      System.out.printf("initialized connection to %s:%d\n", dst.getDomain(), dst.getPort());
+
+      return 0;
+    } catch (IOException | IllegalUriException e) {
+      throw new ConnectRequestException(e);
     }
   }
 
