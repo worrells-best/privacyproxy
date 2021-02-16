@@ -11,9 +11,9 @@ When used appropriately:
 
 ### How do I connect to this proxy?
 1. Establish a TLS connection to the proxy.
-2. Issue a CONNECT request identifying the desired destination input.
+2. Issue a CONNECT request identifying the desired endpoint.
 3. Negotiate TLS with the now-proxied endpoint
-4. Communicate with the end-server. At this point you have TLS under TLS, so the data will be double encrypted. One layer is peeled off by the proxy, the other by the final end-server.
+4. Communicate with the endpoint. At this point you have TLS under TLS, so the data will be double encrypted. One layer is peeled off by the proxy, the other by the final end-server.
 
 See App.java for an example or setup a keystore/truststore and run `$ ./gradlew run`.
 
