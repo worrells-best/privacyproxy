@@ -8,24 +8,24 @@ import javax.net.ssl.*;
 
 public class MySSLContext {
   public static SSLContext get() throws Exception {
-/*
-  ### create keypair and cert for server:
-   $ openssl genrsa -out key.pem 2048
-   $ openssl req -new -sha256 -key key.pem -out csr.csr
-  ### enter "127.0.0.1" for "Common Name"
-   $ openssl req -x509 -sha256 -days 365 -key key.pem -in csr.csr -out certificate.pem
-   $ openssl pkcs12 -export -out server-identity.p12 -inkey key.pem -in certificate.pem
-  ### this is your `keyPass`
+    /*
+     ### create keypair and cert for server:
+      $ openssl genrsa -out key.pem 2048
+      $ openssl req -new -sha256 -key key.pem -out csr.csr
+     ### enter "127.0.0.1" for "Common Name"
+      $ openssl req -x509 -sha256 -days 365 -key key.pem -in csr.csr -out certificate.pem
+      $ openssl pkcs12 -export -out server-identity.p12 -inkey key.pem -in certificate.pem
+     ### this is your `keyPass`
 
-  ### copy your trust store and add add the above cert to it:
-   $ cp $JAVA_HOME/lib/security/cacerts mycerts
-   $ keytool -importcert -keystore mycerts -file certificate.pem
-  ### ^ char[] trustPass (default is 'changeit')
+     ### copy your trust store and add add the above cert to it:
+      $ cp $JAVA_HOME/lib/security/cacerts mycerts
+      $ keytool -importcert -keystore mycerts -file certificate.pem
+     ### ^ char[] trustPass (default is 'changeit')
 
-   String keyStorePath = "./server-identity.p12";
-   String trustStorePath = "./mycerts";
-   ...
- */
+      String keyStorePath = "./server-identity.p12";
+      String trustStorePath = "./mycerts";
+      ...
+    */
     String keyStorePath = "FILL_ME_IN";
     String trustStorePath = "FILL_ME_IN";
     char[] keyPass = "FILL_ME_IN".toCharArray();
