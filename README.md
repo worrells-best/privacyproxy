@@ -37,6 +37,3 @@ This server does not guarantee privacy on its own, and requires a responsible cl
 - more robust testing to ensure these privacy claims are met
 - load testing
 - enable rate limiting so allowlist cannot be enumerated
-
-### Further reading:
-- https://signal.org/blog/giphy-experiment/ 
