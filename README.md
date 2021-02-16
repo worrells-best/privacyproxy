@@ -6,8 +6,8 @@ A single-threaded privacy-preserving proxy. It's an https server that supports o
 ### In what ways is privacy preserved?
 When used appropriately:
 1. Client's IP address is hidden from the end-server.
-2. Data sent between the client and the end-server is hidden from this proxy.
-3. Parties between client and proxy do not know what the destination is.
+2. Data sent between the client and the end-server is hidden from this proxy (because TLS is established with the end-server).
+3. Parties between client and proxy do not know what the destination is (because proxy initialization occurs under TLS).
 
 ### How do I connect to this proxy?
 1. Establish a TLS connection to the proxy.
@@ -15,7 +15,8 @@ When used appropriately:
 3. Negotiate TLS with the now-proxied endpoint
 4. Communicate with the endpoint. At this point you have TLS under TLS, so the data will be double encrypted. One layer is peeled off by the proxy, the other by the final end-server.
 
-See App.java for an example or setup a keystore/truststore and run `$ ./gradlew run`.
+### How do I run this server?
+There is an example in App.java which starts a server and has a client make a single request through it. To run that, you'll need to first configure your keystore/truststore. See MySSLContext.java for instructions.
 
 ### Quickstart
 ```java
